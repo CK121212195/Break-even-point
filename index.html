@@ -3,142 +3,204 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Break-Even Simulator Pro</title>
+<title>損益分岐点ゲーム - 動かして覚える会計</title>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=BIZ+UDGothic:wght@400;700&family=Fredoka+One&display=swap" rel="stylesheet">
 <style>
+  /* === デザインシステム === */
   :root {
     --bg: #f7f7f5; --card: #ffffff; --text: #333333; --text-secondary: #666666;
     --muted: #a0a0a0; --border-strong: #222222; --border-light: #e5e5e5;
     --r-md: 8px; --r-xl: 16px; --r-full: 9999px;
-    --c-fixed: #ffdcb5; --c-var: #fca5a5; --c-rev: #bbf7d0; 
-    --c-profit: #fef08a; --c-loss: #e5e5e5;
-    --c-bepr: #e5e7eb; --c-mos: #bae6fd; /* 右軸用 */
+    
+    /* ブロックのテーマカラー */
+    --c-fixed: #ffdcb5; /* 固定費: オレンジ */
+    --c-var: #fca5a5;   /* 変動費: 赤 */
+    --c-rev: #bbf7d0;   /* 売上: 緑 */
+    --c-profit: #fef08a;/* 利益: 黄 */
+    --c-loss: #e5e5e5;  /* 赤字: グレー */
   }
+
   * { box-sizing: border-box; }
   body { margin: 0; background: var(--bg); color: var(--text); font-family: 'BIZ UDGothic', sans-serif; }
-  
-  /* Header */
+
+  /* --- Header --- */
   .header { display: flex; justify-content: space-between; align-items: center; padding: 12px 24px; background: rgba(247,247,245,0.92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--border-light); position: sticky; top: 0; z-index: 50; }
   .header-title { font-family: 'Fredoka One', sans-serif; font-size: 1.25rem; font-weight: 700; }
   .btn-lang { background: var(--border-strong); color: var(--card); border: none; padding: 6px 16px; border-radius: var(--r-full); cursor: pointer; font-weight: bold; }
 
-  .container { max-width: 1200px; margin: 0 auto; padding: 24px; }
-  .title-sec { text-align: center; margin-bottom: 24px; }
-  .title-sec h1 { margin: 0 0 8px 0; font-size: 1.8rem; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
   
-  /* カード共通 */
-  .card { background: var(--card); border: 2px solid var(--border-strong); border-radius: var(--r-md); padding: 20px; margin-bottom: 20px; }
-  .card-title { font-size: 1.1rem; font-weight: bold; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; border-bottom: 2px dashed var(--border-light); padding-bottom: 8px;}
-  
-  /* 入力フォーム (上限なし) */
-  .input-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
-  .input-group { display: flex; flex-direction: column; gap: 4px; font-weight: bold; font-size: 0.9rem;}
-  .input-group input { padding: 10px; border: 2px solid var(--border-light); border-radius: 6px; font-size: 1.1rem; font-family: monospace; transition: border 0.2s; }
-  .input-group input:focus { border-color: var(--border-strong); outline: none; }
-  
-  /* 販売数コントロール */
-  .sales-control { display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; margin-top: 16px; background: var(--bg); padding: 16px; border-radius: var(--r-md); }
-  .btn-calc { background: var(--card); border: 2px solid var(--border-strong); padding: 8px 16px; border-radius: 6px; font-weight: bold; cursor: pointer; }
-  .btn-calc:hover { background: var(--border-strong); color: var(--card); }
-  .sales-control input { width: 120px; text-align: center; font-size: 1.2rem; }
+  /* --- ヒーローエリア --- */
+  .title-sec { text-align: center; margin-bottom: 32px; }
+  .title-sec h1 { margin: 0 0 12px 0; font-size: 2rem; font-weight: 900; }
+  .status-msg { font-weight: bold; font-size: 1.2rem; color: var(--text-secondary); transition: color 0.3s; }
 
-  /* KPI ダッシュボード */
-  .kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; }
+  /* --- ゲームステージ (ブロック地図 ＆ グラフ) --- */
+  .stage-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; margin-bottom: 32px; }
+  @media (max-width: 800px) { .stage-grid { grid-template-columns: 1fr; } }
+
+  /* ブロック地図 */
+  .map-container { background: var(--bg); border: 2px solid var(--border-strong); border-radius: var(--r-md); padding: 12px; height: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: flex-end; position: relative; box-shadow: 0 8px 16px rgba(0,0,0,0.05);}
+  .map-col { display: flex; flex-direction: column-reverse; gap: 3px; width: 100%; height: 100%; }
+  
+  /* ポップなブロックアニメーション */
+  .block { 
+    width: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 0.9rem; color: rgba(0,0,0,0.85);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.08);
+    transition: flex-basis 0.5s cubic-bezier(0.34, 1.56, 0.64, 1); /* ぽよんとはねる */
+    flex-basis: 0%; overflow: visible; white-space: pre-wrap; text-align: center; line-height: 1.3;
+    position: relative; cursor: help;
+  }
+  .bg-fixed { background: var(--c-fixed); } .bg-var { background: var(--c-var); } 
+  .bg-rev { background: var(--c-rev); } .bg-profit { background: var(--c-profit); } 
+  .bg-loss { background: var(--c-loss); border: 1px dashed #999; box-shadow: none; color: var(--text-secondary);}
+
+  /* グラフエリア */
+  .chart-wrapper { background: var(--card); border: 2px solid var(--border-strong); border-radius: var(--r-md); padding: 16px; height: 400px; position: relative; width: 100%; }
+  
+  /* --- コントロール (遊ぶボタン) --- */
+  .action-area { text-align: center; margin-bottom: 40px; background: var(--card); padding: 24px; border-radius: var(--r-xl); border: 2px solid var(--border-light); }
+  .btn-main { display: inline-flex; align-items: center; justify-content: center; padding: 20px 48px; background: var(--border-strong); color: var(--card); border: none; border-radius: var(--r-full); font-size: 1.5rem; font-weight: 900; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; margin-bottom: 16px; width: 100%; max-width: 400px; }
+  .btn-main:active { transform: scale(0.95); }
+  .btn-sub-group { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
+  .btn-sub { background: var(--bg); border: 2px solid var(--border-strong); padding: 10px 24px; border-radius: var(--r-full); font-weight: bold; cursor: pointer; font-size: 1rem; }
+  .btn-sub:hover { background: var(--border-strong); color: var(--card); }
+  .sales-display { font-size: 1.2rem; font-weight: bold; margin: 0 16px; display: inline-flex; align-items: center; }
+  
+  /* --- 設定 ＆ 経営分析指標エリア --- */
+  .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; }
+  .card { background: var(--card); border: 2px solid var(--border-strong); border-radius: var(--r-md); padding: 20px; }
+  .card-title { font-size: 1.1rem; font-weight: bold; border-bottom: 2px dashed var(--border-light); padding-bottom: 12px; margin-bottom: 16px; margin-top: 0; display: flex; justify-content: space-between; align-items: center; }
+  
+  /* 入力フォーム */
+  .input-list { display: flex; flex-direction: column; gap: 12px; }
+  .input-row { display: flex; justify-content: space-between; align-items: center; font-weight: bold; }
+  .input-row input { width: 120px; padding: 8px; border: 2px solid var(--border-light); border-radius: 6px; font-size: 1.1rem; font-family: monospace; text-align: right; }
+  .input-row input:focus { border-color: var(--border-strong); outline: none; }
+
+  /* 指標タイル */
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .kpi-box { background: var(--bg); padding: 12px; border-radius: 6px; border: 1px solid var(--border-light); text-align: center; }
-  .kpi-label { font-size: 0.8rem; color: var(--text-secondary); font-weight: bold; margin-bottom: 4px; }
-  .kpi-val { font-size: 1.2rem; font-weight: bold; font-family: monospace; }
-  .highlight { color: #0284c7; }
+  .kpi-val { font-size: 1.3rem; font-weight: bold; font-family: monospace; margin-top: 4px; color: #0284c7; }
 
-  /* 要素別分解 タイルグラフ */
-  .tile-wrapper { height: 360px; display: flex; align-items: flex-end; gap: 12px; padding-bottom: 20px; padding-top: 20px; position: relative; border-bottom: 2px solid var(--border-strong); overflow-x: auto;}
-  .tile-col { flex: 1; display: flex; flex-direction: column-reverse; justify-content: flex-start; height: 100%; min-width: 100px;}
-  .tile-col-right { border-left: 2px dashed var(--muted); padding-left: 12px; } /* 右軸（100%軸） */
-  .tile-bar { width: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid rgba(0,0,0,0.1); font-weight: bold; font-size: 0.8rem; overflow: hidden; transition: height 0.4s ease; text-align: center; line-height: 1.2;}
+  /* --- ツールチップ (用語解説) --- */
+  .tooltip { position: relative; cursor: help; display: inline-block; border-bottom: 2px dotted #0284c7; color: var(--text); }
+  .block.tooltip { border-bottom: none; cursor: help; } /* ブロックは下線なし */
   
-  .bg-fixed { background: var(--c-fixed); } .bg-var { background: var(--c-var); } .bg-rev { background: var(--c-rev); } .bg-profit { background: var(--c-profit); } .bg-loss { background: var(--c-loss); border: 1px dashed #999; }
-  .bg-bepr { background: var(--c-bepr); } .bg-mos { background: var(--c-mos); }
-  
-  .chart-container { height: 350px; width: 100%; margin-top: 24px;}
-  
+  .tooltip .tooltip-text {
+    visibility: hidden; width: 260px; background-color: var(--border-strong); color: var(--card);
+    text-align: left; border-radius: 8px; padding: 16px; position: absolute; z-index: 100;
+    bottom: 120%; left: 50%; transform: translateX(-50%);
+    opacity: 0; transition: opacity 0.2s; font-size: 0.9rem; font-weight: 400; line-height: 1.6;
+    box-shadow: 0 10px 15px -3px rgba(0,0,0,0.2); white-space: pre-wrap; font-family: 'BIZ UDGothic', sans-serif; pointer-events: none;
+  }
+  .tooltip .tooltip-text::after {
+    content: ""; position: absolute; top: 100%; left: 50%; margin-left: -8px;
+    border-width: 8px; border-style: solid; border-color: var(--border-strong) transparent transparent transparent;
+  }
+  /* スマホ等で画面端にはみ出るのを防ぐ簡易調整 */
+  .tooltip:hover .tooltip-text, .tooltip:active .tooltip-text { visibility: visible; opacity: 1; }
+
   /* モーダル */
-  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 100; }
+  .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(4px); align-items: center; justify-content: center; z-index: 200; }
   .modal-content { background: var(--card); padding: 32px; border-radius: var(--r-xl); width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; border: 2px solid var(--border-strong); position: relative; }
   .modal-close { position: absolute; top: 16px; right: 24px; font-size: 1.5rem; cursor: pointer; background: none; border: none; font-weight: bold;}
   .cheat-list { list-style: none; padding: 0; display: flex; flex-direction: column; gap: 12px; font-size: 1.05rem; }
   .cheat-list li { background: var(--bg); padding: 12px; border-radius: var(--r-md); border: 1px solid var(--border-light); }
   .b { color: #0284c7; font-weight: bold; }
-
-  @media (max-width: 768px) { .tile-wrapper { min-width: 600px; } }
 </style>
 </head>
 <body>
 
 <div class="header">
-  <div class="header-title">Kaikei Pro Simulator</div>
+  <div class="header-title">損益分岐点ゲーム</div>
   <button class="btn-lang" id="btn-lang" onclick="toggleLang()">EN</button>
 </div>
 
 <div class="container">
   <div class="title-sec">
     <h1 data-i18n="title">「限界利益」を見極めろ！</h1>
-    <div id="status-msg" style="font-weight: bold; font-size: 1.2rem; color: var(--text-secondary);"></div>
+    <div class="status-msg" id="status-msg">商品を売って、地図を育てよう。</div>
   </div>
 
-  <!-- パラメータ入力 (上限なし) -->
-  <div class="card">
-    <div class="card-title">
-      <span data-i18n="p_setting">パラメータ設定 (直接入力可能)</span>
-      <button class="btn-calc" onclick="openModal()" data-i18n="cheat_btn" style="border:none; background:#e0f2fe; color:#0284c7;">数式一覧 📖</button>
+  <!-- メインゲームエリア -->
+  <div class="stage-grid">
+    <!-- 左：育つ地図 (T字勘定ブロック) -->
+    <div class="map-container">
+      <div class="map-col">
+        <div class="block bg-fixed tooltip" id="b-fixed" data-term="fixed_cost"><span class="tooltip-text"></span></div>
+        <div class="block bg-var tooltip" id="b-var" data-term="variable_cost"><span class="tooltip-text"></span></div>
+        <div class="block bg-profit tooltip" id="b-profit" data-term="profit"><span class="tooltip-text"></span></div>
+      </div>
+      <div class="map-col">
+        <div class="block bg-loss tooltip" id="b-loss" data-term="loss"><span class="tooltip-text"></span></div>
+        <div class="block bg-rev tooltip" id="b-rev" data-term="revenue"><span class="tooltip-text"></span></div>
+      </div>
     </div>
-    <div class="input-grid">
-      <div class="input-group"><label data-i18n="price">単価</label><input type="number" id="inp-price" value="1000" oninput="updateAll()"></div>
-      <div class="input-group"><label data-i18n="vc">変動費 (1個あたり)</label><input type="number" id="inp-vc" value="600" oninput="updateAll()"></div>
-      <div class="input-group"><label data-i18n="fc">固定費 (全体)</label><input type="number" id="inp-fc" value="5000" oninput="updateAll()"></div>
-      <div class="input-group"><label data-i18n="target">目標利益</label><input type="number" id="inp-target" value="10000" oninput="updateAll()"></div>
+
+    <!-- 右：損益分岐点グラフ (リアルタイム) -->
+    <div class="chart-wrapper">
+      <canvas id="cvpChart"></canvas>
     </div>
+  </div>
+
+  <!-- アクションエリア (操作パネル) -->
+  <div class="action-area">
+    <button class="btn-main" onclick="changeSales(1)" data-i18n="btn_sell">商品を1つ売る 🎯</button>
+    <div class="btn-sub-group">
+      <button class="btn-sub" onclick="changeSales(-1)">-1</button>
+      <div class="sales-display"><span data-i18n="current_sales">現在販売数:</span> <span id="disp-sales" style="margin:0 8px;font-size:1.5rem;color:#0284c7;">0</span> <span data-i18n="unit">個</span></div>
+      <button class="btn-sub" onclick="changeSales(10)">+10</button>
+      <button class="btn-sub" onclick="resetSales()" style="border-color:var(--text-secondary); color:var(--text-secondary);" data-i18n="btn_reset">最初から</button>
+    </div>
+  </div>
+
+  <!-- 設定 ＆ 経営分析指標エリア -->
+  <div class="dashboard-grid">
     
-    <div class="sales-control">
-      <span style="font-weight:bold;" data-i18n="sales">現在販売数:</span>
-      <button class="btn-calc" onclick="changeSales(-10)">-10</button>
-      <button class="btn-calc" onclick="changeSales(-1)">-1</button>
-      <input type="number" id="inp-sales" value="0" oninput="updateAll()">
-      <span data-i18n="sales_unit">個</span>
-      <button class="btn-calc" onclick="changeSales(1)">+1</button>
-      <button class="btn-calc" onclick="changeSales(10)">+10</button>
+    <!-- パラメータ設定 -->
+    <div class="card">
+      <h2 class="card-title">
+        <span data-i18n="setting_title">パラメータ設定</span>
+        <button class="btn-sub" onclick="openModal()" style="padding:4px 8px; font-size:0.8rem; background:#e0f2fe; color:#0284c7; border:none;" data-i18n="cheat_btn">数式一覧 📖</button>
+      </h2>
+      <div class="input-list">
+        <div class="input-row"><label class="tooltip" data-term="revenue"><span data-i18n="price">単価</span><span class="tooltip-text"></span></label><input type="number" id="inp-price" value="1000" oninput="updateAll()"></div>
+        <div class="input-row"><label class="tooltip" data-term="variable_cost"><span data-i18n="vc">変動費 (1個)</span><span class="tooltip-text"></span></label><input type="number" id="inp-vc" value="600" oninput="updateAll()"></div>
+        <div class="input-row"><label class="tooltip" data-term="fixed_cost"><span data-i18n="fc">固定費 (全体)</span><span class="tooltip-text"></span></label><input type="number" id="inp-fc" value="5000" oninput="updateAll()"></div>
+        <div class="input-row"><label class="tooltip" data-term="target_profit"><span data-i18n="target">目標利益</span><span class="tooltip-text"></span></label><input type="number" id="inp-target" value="10000" oninput="updateAll()"></div>
+      </div>
     </div>
-  </div>
 
-  <!-- KPI ダッシュボード -->
-  <div class="card">
-    <div class="card-title" data-i18n="kpi_title">経営分析指標 (KPI)</div>
-    <div class="kpi-grid">
-      <div class="kpi-box"><div class="kpi-label" data-i18n="kpi_cmr">限界利益率</div><div class="kpi-val highlight" id="kpi-cmr">0%</div></div>
-      <div class="kpi-box"><div class="kpi-label" data-i18n="kpi_vcr">変動費率</div><div class="kpi-val" id="kpi-vcr">0%</div></div>
-      <div class="kpi-box"><div class="kpi-label" data-i18n="kpi_bep_vol">損益分岐点数量</div><div class="kpi-val highlight" id="kpi-bep-vol">0</div></div>
-      <div class="kpi-box"><div class="kpi-label" data-i18n="kpi_target_vol">目標達成数量</div><div class="kpi-val" id="kpi-target-vol">0</div></div>
-      <div class="kpi-box"><div class="kpi-label" data-i18n="kpi_bepr">損益分岐点比率</div><div class="kpi-val" id="kpi-bepr">0%</div></div>
-      <div class="kpi-box"><div class="kpi-label" data-i18n="kpi_mos">安全余裕率</div><div class="kpi-val highlight" id="kpi-mos">0%</div></div>
+    <!-- 経営分析指標 -->
+    <div class="card">
+      <h2 class="card-title" data-i18n="kpi_title">経営分析指標</h2>
+      <div class="kpi-grid">
+        <div class="kpi-box">
+          <div class="tooltip" data-term="marginal_profit"><span style="font-size:0.85rem; font-weight:bold;" data-i18n="kpi_cm">1個あたり限界利益</span><span class="tooltip-text"></span></div>
+          <div class="kpi-val" id="kpi-cm">¥0</div>
+        </div>
+        <div class="kpi-box">
+          <div class="tooltip" data-term="bep_sales"><span style="font-size:0.85rem; font-weight:bold;" data-i18n="kpi_bep_rev">損益分岐点売上高</span><span class="tooltip-text"></span></div>
+          <div class="kpi-val" id="kpi-bep-rev">¥0</div>
+        </div>
+        <div class="kpi-box">
+          <div class="tooltip" data-term="marginal_profit_ratio"><span style="font-size:0.85rem; font-weight:bold;" data-i18n="kpi_cmr">限界利益率</span><span class="tooltip-text"></span></div>
+          <div class="kpi-val" id="kpi-cmr">0%</div>
+        </div>
+        <div class="kpi-box">
+          <div class="tooltip" data-term="margin_of_safety"><span style="font-size:0.85rem; font-weight:bold;" data-i18n="kpi_mos">安全余裕率</span><span class="tooltip-text"></span></div>
+          <div class="kpi-val" id="kpi-mos">0%</div>
+        </div>
+      </div>
     </div>
-  </div>
 
-  <!-- ビジュアルエリア (要素別分解 ＆ CVPグラフ) -->
-  <div class="card" style="overflow: hidden;">
-    <div class="card-title" data-i18n="chart_tile_title">売上高の内訳 (要素別分解タイル)</div>
-    <div class="tile-wrapper">
-      <div class="tile-col" id="col-1"></div> <!-- 売上・赤字 -->
-      <div class="tile-col" id="col-2"></div> <!-- 費用・利益 -->
-      <div class="tile-col" id="col-3"></div> <!-- 限界利益 -->
-      <div class="tile-col" id="col-4"></div> <!-- 分岐点売上 -->
-      <div class="tile-col tile-col-right" id="col-5"></div> <!-- 比率軸 -->
-    </div>
-    
-    <div class="card-title" style="margin-top:40px;" data-i18n="chart_cvp_title">CVP分析グラフ (リアルタイム)</div>
-    <div class="chart-container"><canvas id="cvpChart"></canvas></div>
   </div>
 </div>
 
-<!-- モーダル (数式一覧) -->
+<!-- 数式チートシート（モーダル） -->
 <div class="modal" id="modal">
   <div class="modal-content">
     <button class="modal-close" onclick="closeModal()">×</button>
@@ -148,18 +210,42 @@
 </div>
 
 <script>
-  // --- 多言語化 (i18n) 辞書 ---
+  // --- 用語辞典 (Glossary) & 多言語対応 ---
+  const glossary = {
+    ja: {
+      revenue: "【売上高 (売上)】\n商品やサービスを提供して得たお金の総額。「単価 × 販売数量」で計算されます。",
+      variable_cost: "【変動費】\n商品の仕入れ代や材料費など、売れれば売れるほど「比例して増える」費用のこと。",
+      fixed_cost: "【固定費】\n家賃や基本の人件費など、商品が全く売れなくても「毎月決まって必ずかかる」費用のこと。",
+      profit: "【利益】\n売上からすべての費用（変動費＋固定費）を引いて、最終的に手元に残ったお金。",
+      loss: "【赤字】\n売上よりも費用のほうが大きくなってしまった状態。この赤字額をゼロにする目標地点が「損益分岐点」です。",
+      marginal_profit: "【限界利益】\n売上から変動費を引いた金額。商品を1つ売るごとに「手元に残るお金」。これが固定費をカバーし、利益を生み出します。",
+      marginal_profit_ratio: "【限界利益率】\n売上高に対する限界利益の割合。この比率が高いほど、売上が増えたときに利益が出やすい（儲かりやすい）体質と言えます。",
+      bep_sales: "【損益分岐点売上高】\n売上と費用がぴったり同じになり、利益も赤字も「ゼロ」になる売上のこと。ここを超えると黒字になります。",
+      margin_of_safety: "【安全余裕率】\n現在の売上が、損益分岐点から「どれくらい余裕で上回っているか」を示す割合。高いほど赤字に転落しにくく、経営が安全です。",
+      target_profit: "【目標利益】\nあなたが達成したい利益の金額。これを設定することで、目標達成に必要な売上高や販売数量を逆算できます。"
+    },
+    en: {
+      revenue: "[Sales Revenue]\nThe total amount of money brought in by the company's operations (Price × Quantity).",
+      variable_cost: "[Variable Cost]\nCosts that vary depending on a company's production volume (e.g., raw materials).",
+      fixed_cost: "[Fixed Cost]\nCosts that remain the same regardless of production output (e.g., rent, salaries).",
+      profit: "[Profit]\nThe financial benefit realized when revenue exceeds all costs.",
+      loss: "[Loss]\nAn excess of expenses over revenues. The goal is to reach the Break-Even Point to eliminate this.",
+      marginal_profit: "[Contribution Margin]\nSales Revenue minus Variable Costs. It represents the portion of sales that helps cover fixed costs.",
+      marginal_profit_ratio: "[Contribution Margin Ratio]\nThe ratio of contribution margin to sales. A higher ratio means the company is highly profitable once fixed costs are covered.",
+      bep_sales: "[Break-Even Sales]\nThe level of sales at which total revenues equal total costs, resulting in zero profit or loss.",
+      margin_of_safety: "[Margin of Safety]\nHow much sales can drop before a business reaches its break-even point. Higher is safer.",
+      target_profit: "[Target Profit]\nThe specific amount of profit a business aims to achieve."
+    }
+  };
+
   const i18n = {
     ja: {
-      title: "「限界利益」を見極めろ！", p_setting: "パラメータ設定 (桁数上限なし)", cheat_btn: "数式一覧 📖",
-      price: "単価", vc: "変動費 (1個あたり)", fc: "固定費 (全体)", target: "目標利益",
-      sales: "現在販売数:", sales_unit: "個", kpi_title: "経営分析指標 (KPI)",
-      kpi_cmr: "限界利益率", kpi_vcr: "変動費率", kpi_bep_vol: "損益分岐点数量", kpi_target_vol: "目標達成数量",
-      kpi_bepr: "損益分岐点比率", kpi_mos: "安全余裕率", chart_tile_title: "売上高の内訳 (要素別分解タイル)",
-      chart_cvp_title: "CVP分析グラフ (リアルタイム)", cheat_title: "損益分岐点の数式一覧",
-      bar_rev: "売上", bar_vc: "変動費", bar_fc: "固定費", bar_profit: "利益", bar_loss: "赤字", bar_cm: "限界利益", bar_bep: "損益分岐売上",
-      msg_danger: "⚠️ 単価より変動費が高く、売るほど赤字です！", msg_bep: "🎉 損益分岐点到達！", msg_target: "🎯 目標利益 達成！",
-      msg_deficit: "あと {n} 個で黒字！", msg_profit: "黒字ゾーン (現在利益: ¥{p})",
+      title: "「限界利益」を見極めろ！", btn_sell: "商品を1つ売る 🎯", current_sales: "現在販売数:", unit: "個", btn_reset: "最初から",
+      setting_title: "パラメータ設定", cheat_btn: "数式一覧 📖", price: "単価", vc: "変動費 (1個)", fc: "固定費 (全体)", target: "目標利益",
+      kpi_title: "経営分析指標", kpi_cm: "1個あたり限界利益", kpi_bep_rev: "損益分岐点売上高", kpi_cmr: "限界利益率", kpi_mos: "安全余裕率",
+      cheat_title: "損益分岐点の数式一覧",
+      msg_danger: "⚠️ 単価より変動費が高く、売るほど赤字です！", msg_bep: "🎉 損益分岐点（プラマイゼロ）到達！", msg_target: "🎯 目標利益 達成！",
+      msg_deficit: "あと {n} 個売れば黒字！", msg_profit: "📈 黒字ゾーン (現在利益: ¥{p})",
       formulas: [
         "1. <span class='b'>損益分岐点売上高</span> ＝ 固定費 ÷ 限界利益率",
         "2. <span class='b'>損益分岐点売上高</span> ＝ 固定費 ÷ ｛1 －（変動費 ÷ 売上高）｝",
@@ -172,15 +258,12 @@
       ]
     },
     en: {
-      title: "Identify the Marginal Profit!", p_setting: "Parameters (No Limit)", cheat_btn: "Formulas 📖",
-      price: "Unit Price", vc: "Unit Var. Cost", fc: "Total Fixed Cost", target: "Target Profit",
-      sales: "Current Sales:", sales_unit: "units", kpi_title: "Key Performance Indicators (KPI)",
-      kpi_cmr: "Cont. Margin Ratio", kpi_vcr: "Var. Cost Ratio", kpi_bep_vol: "Break-Even Volume", kpi_target_vol: "Target Volume",
-      kpi_bepr: "BEP Ratio", kpi_mos: "Margin of Safety", chart_tile_title: "Breakdown of Sales (Waterfall Tile)",
-      chart_cvp_title: "CVP Analysis Chart (Real-time)", cheat_title: "CVP Formulas Cheat Sheet",
-      bar_rev: "Sales", bar_vc: "Var.Cost", bar_fc: "FixedCost", bar_profit: "Profit", bar_loss: "Loss", bar_cm: "Cont.Margin", bar_bep: "BEP Sales",
-      msg_danger: "⚠️ Price is lower than VC. Loss increases per sale!", msg_bep: "🎉 Break-Even Point Reached!", msg_target: "🎯 Target Profit Achieved!",
-      msg_deficit: "Need {n} more units to Break-Even!", msg_profit: "Profitable! (Current Profit: ¥{p})",
+      title: "Identify the Marginal Profit!", btn_sell: "Sell 1 Item 🎯", current_sales: "Current Sales:", unit: "units", btn_reset: "Reset",
+      setting_title: "Parameters", cheat_btn: "Formulas 📖", price: "Unit Price", vc: "Unit Var.Cost", fc: "Total Fixed Cost", target: "Target Profit",
+      kpi_title: "Key Indicators", kpi_cm: "Unit Cont. Margin", kpi_bep_rev: "Break-Even Sales", kpi_cmr: "Cont. Margin Ratio", kpi_mos: "Margin of Safety",
+      cheat_title: "CVP Formulas Cheat Sheet",
+      msg_danger: "⚠️ Price < VC. Loss increases per sale!", msg_bep: "🎉 Break-Even Point Reached!", msg_target: "🎯 Target Profit Achieved!",
+      msg_deficit: "Need {n} more units to Break-Even!", msg_profit: "📈 Profitable! (Profit: ¥{p})",
       formulas: [
         "1. <span class='b'>BEP Sales</span> = Fixed Cost / Contribution Margin Ratio",
         "2. <span class='b'>BEP Sales</span> = Fixed Cost / {1 - (Variable Cost / Sales)}",
@@ -195,21 +278,30 @@
   };
 
   let lang = 'ja';
-  const t = (key) => i18n[lang][key];
-
+  let sales = 0;
+  
   function toggleLang() {
     lang = lang === 'ja' ? 'en' : 'ja';
     document.getElementById('btn-lang').innerText = lang === 'ja' ? 'EN' : 'JA';
+    
+    // UIテキスト更新
     document.querySelectorAll('[data-i18n]').forEach(el => {
       const k = el.getAttribute('data-i18n');
       if(i18n[lang][k]) el.innerHTML = i18n[lang][k];
     });
-    const cheatList = document.getElementById('cheat-list');
-    cheatList.innerHTML = i18n[lang].formulas.map(f => `<li>${f}</li>`).join('');
+    // モーダル数式更新
+    document.getElementById('cheat-list').innerHTML = i18n[lang].formulas.map(f => `<li>${f}</li>`).join('');
+    // ツールチップ更新
+    document.querySelectorAll('.tooltip').forEach(el => {
+      const term = el.getAttribute('data-term');
+      const txtEl = el.querySelector('.tooltip-text');
+      if(txtEl && glossary[lang][term]) txtEl.innerText = glossary[lang][term];
+    });
+    
     updateAll();
   }
-  
-  // モーダル処理
+
+  // モーダル制御
   const modal = document.getElementById('modal');
   function openModal() { modal.style.display = 'flex'; }
   function closeModal() { modal.style.display = 'none'; }
@@ -222,44 +314,47 @@
     chartInstance = new Chart(ctx, {
       type: 'line', data: { labels: [], datasets: [] },
       options: {
-        responsive: true, maintainAspectRatio: false, animation: { duration: 200 },
-        scales: { y: { beginAtZero: true } },
+        responsive: true, maintainAspectRatio: false, animation: { duration: 300 },
+        scales: { 
+          x: { title: { display: true, text: '販売数量 (Sales Volume)' } },
+          y: { beginAtZero: true } 
+        },
         plugins: { legend: { position: 'top', labels: { font: { family: "'BIZ UDGothic', sans-serif" } } } }
       }
     });
   }
 
+  // アクション制御
   function changeSales(amount) {
-    const el = document.getElementById('inp-sales');
-    el.value = Math.max(0, parseInt(el.value || 0) + amount);
+    sales = Math.max(0, sales + amount);
     updateAll();
   }
+  function resetSales() { sales = 0; updateAll(); }
 
-  // --- メイン計算 & 描画ロジック ---
+  // メインロジック
   function updateAll() {
+    document.getElementById('disp-sales').innerText = sales.toLocaleString();
+
     const price = parseFloat(document.getElementById('inp-price').value) || 0;
     const vc = parseFloat(document.getElementById('inp-vc').value) || 0;
     const fc = parseFloat(document.getElementById('inp-fc').value) || 0;
     const target = parseFloat(document.getElementById('inp-target').value) || 0;
-    const sales = parseFloat(document.getElementById('inp-sales').value) || 0;
 
-    const cm = price - vc; // 限界利益
+    const cm = price - vc; // 1個あたり限界利益
     const cmr = price > 0 ? cm / price : 0; // 限界利益率
-    const vcr = price > 0 ? vc / price : 0; // 変動費率
-    const bepVol = cm > 0 ? Math.ceil(fc / cm) : Infinity; // 損益分岐点数量
-    const bepRev = bepVol !== Infinity ? bepVol * price : 0;
-    const targetVol = cm > 0 ? Math.ceil((fc + target) / cm) : Infinity;
+    const bepVol = cm > 0 ? Math.ceil(fc / cm) : Infinity; // 分岐点数量
+    const bepRev = bepVol !== Infinity ? bepVol * price : 0; // 分岐点売上高
     
     const rev = price * sales;
     const totalVc = vc * sales;
     const totalCost = fc + totalVc;
     const profit = rev - totalCost;
-
-    const bepRatio = rev > 0 ? (bepRev / rev) : 0;
-    const mos = rev > 0 ? ((rev - bepRev) / rev) : 0;
+    
+    const mos = rev > 0 ? ((rev - bepRev) / rev) : 0; // 安全余裕率
 
     // --- メッセージ更新 ---
     const msgEl = document.getElementById('status-msg');
+    const t = (key) => i18n[lang][key];
     if (cm <= 0) {
       msgEl.innerHTML = `<span style="color:#dc2626">${t('msg_danger')}</span>`;
     } else if (profit < 0) {
@@ -274,92 +369,67 @@
       msgEl.innerHTML = `<span style="color:#16a34a">${t('msg_profit').replace('{p}', profit.toLocaleString())}</span>`;
     }
 
-    // --- KPI更新 ---
+    // --- 指標(KPI)更新 ---
+    document.getElementById('kpi-cm').innerText = `¥${cm.toLocaleString()}`;
+    document.getElementById('kpi-bep-rev').innerText = bepRev === Infinity ? '-' : `¥${bepRev.toLocaleString()}`;
     document.getElementById('kpi-cmr').innerText = (cmr * 100).toFixed(1) + '%';
-    document.getElementById('kpi-vcr').innerText = (vcr * 100).toFixed(1) + '%';
-    document.getElementById('kpi-bep-vol').innerText = bepVol === Infinity ? '-' : bepVol.toLocaleString();
-    document.getElementById('kpi-target-vol').innerText = targetVol === Infinity ? '-' : targetVol.toLocaleString();
-    
-    // 赤字時は便宜上0/100以上として扱う
-    document.getElementById('kpi-bepr').innerText = (profit < 0 && rev > 0) ? '>100%' : (bepRatio * 100).toFixed(1) + '%';
     document.getElementById('kpi-mos').innerText = profit < 0 ? '0%' : (mos * 100).toFixed(1) + '%';
 
-    // --- タイル生成 (HTML Helper) ---
-    const createBar = (label, val, cls, max, isPct=false) => {
-      if (val <= 0) return '';
-      const h = isPct ? (val * 100) : (val / max * 100);
-      if (h <= 0) return '';
-      const displayH = Math.min(h, 100); // 突き抜け防止
-      const txt = isPct ? (val * 100).toFixed(1) + '%' : '¥' + val.toLocaleString();
-      // 高さが低い場合はテキストを隠す
-      const content = displayH > 10 ? `<span>${label}</span><span>${txt}</span>` : '';
-      return `<div class="tile-bar ${cls}" style="height: ${displayH}%">${content}</div>`;
-    };
+    // --- ブロック(地図)のアニメーション更新 ---
+    const bFixed = document.getElementById('b-fixed');
+    const bVar = document.getElementById('b-var');
+    const bProfit = document.getElementById('b-profit');
+    const bLoss = document.getElementById('b-loss');
+    const bRev = document.getElementById('b-rev');
 
-    // 最大高さの基準決定 (売上, 損益分岐点, 総費用(赤字時) の中で一番大きいもの)
-    const maxBar = Math.max(rev, bepRev, totalCost) * 1.05 || 1;
-
-    // Col 1: 売上 ＋ 赤字(上に乗る)
-    let c1 = createBar(t('bar_rev'), rev, 'bg-rev', maxBar);
-    if (profit < 0) c1 += createBar(t('bar_loss'), Math.abs(profit), 'bg-loss', maxBar);
-    document.getElementById('col-1').innerHTML = c1;
-
-    // Col 2: 変動費 ＋ 固定費 ＋ 利益
-    let c2 = createBar(t('bar_vc'), totalVc, 'bg-var', maxBar);
-    c2 += createBar(t('bar_fc'), fc, 'bg-fixed', maxBar);
-    if (profit > 0) c2 += createBar(t('bar_profit'), profit, 'bg-profit', maxBar);
-    document.getElementById('col-2').innerHTML = c2;
-
-    // Col 3: 限界利益 (単価-変動費 × 数量)
-    document.getElementById('col-3').innerHTML = createBar(t('bar_cm'), cm * sales, 'bg-mos', maxBar); // 水色系で表現
-
-    // Col 4: 損益分岐点売上高
-    document.getElementById('col-4').innerHTML = createBar(t('bar_bep'), bepRev, 'bg-fixed', maxBar); // オレンジ系
-
-    // Col 5: 比率 (右軸 100%スケール)
-    let c5 = '';
-    if (profit >= 0 && rev > 0) {
-      c5 += createBar(t('kpi_bepr'), bepRatio, 'bg-bepr', 1, true);
-      c5 += createBar(t('kpi_mos'), mos, 'bg-mos', 1, true);
-    } else if(rev > 0) {
-      // 赤字時は損益分岐点比率が100%を超えるため、警告表示
-      c5 += createBar(t('kpi_bepr'), 1, 'bg-loss', 1, true); 
-    }
-    document.getElementById('col-5').innerHTML = c5;
+    const maxSales = Math.max(sales, bepVol * 1.5, 10);
+    const blockMax = Math.max(fc + (vc * maxSales), price * maxSales);
+    const getPct = (val) => (val / blockMax) * 100;
+    
+    bFixed.style.flexBasis = `${getPct(fc)}%`;
+    bFixed.innerHTML = `固定費\n¥${fc.toLocaleString()}<span class="tooltip-text">${glossary[lang].fixed_cost}</span>`;
+    
+    bVar.style.flexBasis = `${getPct(totalVc)}%`;
+    bVar.innerHTML = totalVc > 0 ? `変動費\n¥${totalVc.toLocaleString()}<span class="tooltip-text">${glossary[lang].variable_cost}</span>` : `<span class="tooltip-text">${glossary[lang].variable_cost}</span>`;
+    
+    bProfit.style.flexBasis = `${getPct(Math.max(0, profit))}%`;
+    bProfit.innerHTML = profit > 0 ? `利益\n¥${profit.toLocaleString()}<span class="tooltip-text">${glossary[lang].profit}</span>` : `<span class="tooltip-text">${glossary[lang].profit}</span>`;
+    
+    bRev.style.flexBasis = `${getPct(rev)}%`;
+    bRev.innerHTML = rev > 0 ? `売上\n¥${rev.toLocaleString()}<span class="tooltip-text">${glossary[lang].revenue}</span>` : `<span class="tooltip-text">${glossary[lang].revenue}</span>`;
+    
+    bLoss.style.flexBasis = `${getPct(Math.max(0, -profit))}%`;
+    bLoss.innerHTML = profit < 0 ? `赤字\n¥${Math.abs(profit).toLocaleString()}<span class="tooltip-text">${glossary[lang].loss}</span>` : `<span class="tooltip-text">${glossary[lang].loss}</span>`;
 
     // --- Chart.js 更新 ---
-    const chartMaxX = cm > 0 ? Math.ceil(Math.max(sales, bepVol, targetVol===Infinity?0:targetVol) * 1.2) : Math.max(sales * 2, 10);
-    const step = Math.ceil(chartMaxX / 20) || 1; // 20プロット程度に間引く
+    const chartMaxX = cm > 0 ? Math.ceil(Math.max(sales, bepVol) * 1.5) : Math.max(sales * 2, 10);
+    const step = Math.ceil(chartMaxX / 20) || 1; 
     
-    const labels = [], revData = [], costData = [], targetPoint = [], currentPoint = [];
+    const labels = [], revData = [], costData = [], currentPoint = [];
     for (let i = 0; i <= chartMaxX; i += step) {
       labels.push(i);
       revData.push(price * i);
       costData.push(fc + (vc * i));
-      
-      // マーカーのセット (近似値の場所に配置)
       currentPoint.push(Math.abs(i - sales) < step ? (price * sales) : null);
-      if (targetVol !== Infinity) {
-        targetPoint.push(Math.abs(i - targetVol) < step ? (price * targetVol) : null);
-      } else { targetPoint.push(null); }
     }
+
+    const l_rev = lang === 'ja' ? '売上' : 'Sales';
+    const l_cost = lang === 'ja' ? '総費用' : 'Total Cost';
+    const l_cur = lang === 'ja' ? '現在地' : 'Current';
 
     chartInstance.data.labels = labels;
     chartInstance.data.datasets = [
-      { label: t('bar_rev'), data: revData, borderColor: '#4ade80', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
-      { label: '総費用 (Total Cost)', data: costData, borderColor: '#f87171', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
-      { label: '現在地 (Current)', data: currentPoint, pointBackgroundColor: '#3b82f6', pointRadius: 8, showLine: false },
-      { label: '目標 (Target)', data: targetPoint, pointBackgroundColor: '#eab308', pointStyle: 'star', pointRadius: 10, showLine: false }
+      { label: l_rev, data: revData, borderColor: '#4ade80', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
+      { label: l_cost, data: costData, borderColor: '#f87171', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
+      { label: l_cur, data: currentPoint, pointBackgroundColor: '#3b82f6', pointRadius: 8, showLine: false }
     ];
     chartInstance.update();
   }
 
   // 初回起動
-  toggleLang(); // jaテキストセット
-  toggleLang(); // 元に戻して初期化
   initChart();
-  document.getElementById('cheat-list').innerHTML = i18n.ja.formulas.map(f => `<li>${f}</li>`).join('');
-  updateAll();
+  toggleLang(); // JA初期化とツールチップ等の生成
+  toggleLang(); 
 </script>
 </body>
 </html>
