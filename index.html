@@ -4,25 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-<!-- === SEO & OGP (Twitterカード) === -->
+<!-- === SEO & OGP === -->
 <title>損益分岐点ゲーム - 動かして覚える会計</title>
 <meta name="description" content="商品を売るたびにブロックが育つ！ゲーム感覚で損益分岐点や限界利益を学べるシミュレーター。">
-<link rel="icon" href="favicon.png" type="image/png">
-<meta property="og:type" content="website">
-<meta property="og:title" content="損益分岐点ゲーム - 動かして覚える会計">
-<meta property="og:description" content="落ちてくる取引を置くだけ。遊ぶうちに、会計が体に入るシミュレーター。">
-<!-- GitHubにアップするだけで済むように画像ファイル名を指定 -->
-<meta property="og:image" content="ogp.png"> 
-<meta name="twitter:card" content="summary_large_image">
-
-<!-- === Google Analytics === -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-HZK5JG5D5L"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-  gtag('config', 'G-HZK5JG5D5L');
-</script>
 
 <!-- ライブラリ & フォント -->
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -71,7 +55,7 @@
   /* ゲームステージ (縦レイアウトに変更) */
   .stage-grid { display: flex; flex-direction: column; gap: 24px; margin-bottom: 32px; }
   
-  /* 要素別分解ブロックエリア */
+  /* 要素別分解ブロックエリア (4カラム) */
   .map-container-wrapper { background: var(--card); border: 2px solid var(--border-strong); border-radius: var(--r-md); padding: 20px 24px; box-shadow: 0 8px 16px rgba(0,0,0,0.05); }
   .map-container { display: flex; justify-content: space-around; align-items: flex-end; height: 350px; gap: 16px; margin-bottom: 12px; }
   .map-col { display: flex; flex-direction: column; justify-content: flex-end; gap: 1px; width: 23%; height: 100%; border-bottom: 3px solid var(--border-strong); padding-bottom: 2px;}
@@ -102,10 +86,6 @@
   .btn-sub-group { display: flex; justify-content: center; align-items: center; gap: 12px; flex-wrap: wrap; }
   .btn-sub { background: var(--bg); border: 2px solid var(--border-strong); padding: 10px 24px; border-radius: var(--r-full); font-weight: bold; cursor: pointer; font-size: 1rem; }
   .btn-sub:hover { background: var(--border-strong); color: var(--card); }
-  
-  /* Twitter(X) ボタン */
-  .btn-tweet { display: inline-flex; align-items: center; gap: 8px; background: #000000; color: #ffffff; border: none; border-radius: var(--r-full); padding: 10px 24px; font-weight: bold; text-decoration: none; font-size: 0.95rem; margin-top: 16px; transition: transform 0.1s; }
-  .btn-tweet:hover { transform: scale(1.05); color: #ffffff; }
 
   /* ダッシュボード */
   .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 24px; margin-bottom: 40px;}
@@ -131,10 +111,6 @@
   .modal-content { background: var(--card); padding: 32px; border-radius: var(--r-xl); width: 90%; max-width: 700px; max-height: 90vh; overflow-y: auto; border: 2px solid var(--border-strong); position: relative; }
   .modal-close { position: absolute; top: 16px; right: 24px; font-size: 1.5rem; cursor: pointer; background: none; border: none; font-weight: bold;}
   .b { color: #0284c7; font-weight: bold; }
-
-  /* フッター */
-  .footer { text-align: center; padding: 32px 24px; color: var(--text-secondary); font-size: 0.85rem; border-top: 1px solid var(--border-light); margin-top: 40px; }
-  .footer .btc { font-family: monospace; font-weight: bold; color: var(--text); background: var(--bg); padding: 4px 8px; border-radius: 4px; border: 1px solid var(--border-light);}
 </style>
 </head>
 <body>
@@ -147,43 +123,34 @@
 <div class="container">
   <div class="title-sec"><h1 data-i18n="title">「限界利益」を見極めろ！</h1></div>
 
-  <div class="how-to-play">
-    <h2 data-i18n="howto_title">🎮 遊び方 ＆ 学べること</h2>
-    <p data-i18n="howto_desc">
-      読むだけの教材やフラッシュカードではありません。下の「商品を売る」ボタンを押すと、取引がブロックとして積み上がります。<br>
-      落ちモノパズルのように<strong>「固定費の壁」を越え、「限界利益」が利益へと変わる瞬間</strong>を指先で体感してください。<br>
-      ※ 用語が分からないときは、点線のテキストやブロックにカーソルを合わせると解説が表示されます！
-    </p>
-  </div>
-
   <div class="advice-box">
     <div class="advice-title" data-i18n="adv_title">📊 経営アドバイス (リアルタイム分析)</div>
     <ul class="advice-list" id="advice-list"></ul>
   </div>
 
   <div class="stage-grid">
-    <!-- 積み上げブロック（要素別分解） -->
+    <!-- 積み上げブロック（要素別分解 4カラム） -->
     <div class="map-container-wrapper">
       <h3 style="text-align:center; margin-top:0; color:var(--text-secondary); font-size:1.05rem;" data-i18n="graph_title">売上高の内訳（要素別分解）</h3>
       <div class="map-container" id="map-container">
-        <!-- Col 1: 売上高 -->
+        <!-- 1列目: 売上高 -->
         <div class="map-col">
           <div class="block bg-loss tooltip" id="b-loss1" data-term="loss"><span class="tooltip-text"></span></div>
           <div class="block bg-rev tooltip" id="b-rev" data-term="revenue"><span class="tooltip-text"></span></div>
         </div>
-        <!-- Col 2: 費用と利益 -->
+        <!-- 2列目: 費用と利益 -->
         <div class="map-col">
           <div class="block bg-var tooltip" id="b-var1" data-term="variable_cost"><span class="tooltip-text"></span></div>
           <div class="block bg-fixed tooltip" id="b-fixed" data-term="fixed_cost"><span class="tooltip-text"></span></div>
           <div class="block bg-profit tooltip" id="b-profit" data-term="profit"><span class="tooltip-text"></span></div>
         </div>
-        <!-- Col 3: 限界利益 -->
+        <!-- 3列目: 限界利益 -->
         <div class="map-col">
           <div class="block bg-var tooltip" id="b-var2" data-term="variable_cost"><span class="tooltip-text"></span></div>
           <div class="block bg-loss tooltip" id="b-loss2" data-term="loss"><span class="tooltip-text"></span></div>
           <div class="block bg-margin tooltip" id="b-margin" data-term="marginal_profit"><span class="tooltip-text"></span></div>
         </div>
-        <!-- Col 4: 損益分岐点 -->
+        <!-- 4列目: 損益分岐点 -->
         <div class="map-col">
           <div class="block bg-safety tooltip" id="b-safety" data-term="margin_of_safety"><span class="tooltip-text"></span></div>
           <div class="block bg-bep tooltip" id="b-bep" data-term="bep_sales"><span class="tooltip-text"></span></div>
@@ -197,7 +164,7 @@
       </div>
     </div>
     
-    <!-- CVPグラフ -->
+    <!-- CVPグラフ (下部に配置) -->
     <div class="chart-wrapper"><canvas id="cvpChart"></canvas></div>
   </div>
 
@@ -213,12 +180,6 @@
       <button class="btn-sub" onclick="changeSales(10)">+10</button>
       <button class="btn-sub" onclick="resetSales()" style="border-color:var(--text-secondary); color:var(--text-secondary);" data-i18n="btn_reset">最初から</button>
     </div>
-    
-    <br>
-    <a href="#" id="btn-tweet" class="btn-tweet" target="_blank" rel="noopener noreferrer">
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-      <span data-i18n="btn_share">結果をポストする</span>
-    </a>
   </div>
 
   <div class="dashboard-grid">
@@ -250,10 +211,6 @@
     </div>
   </div>
 </div>
-
-<footer class="footer">
-  <p>Bitcoin (Lightning) Donation: <span class="btc">brashridge65@walletofsatoshi.com</span></p>
-</footer>
 
 <div class="modal" id="modal">
   <div class="modal-content">
@@ -311,9 +268,8 @@
   const i18n = {
     ja: {
       title: "「限界利益」を見極めろ！", adv_title: "📊 経営アドバイス (リアルタイム分析)",
-      howto_title: "🎮 遊び方 ＆ 学べること", howto_desc: "読むだけの教材やフラッシュカードではありません。下の「商品を売る」ボタンを押すと、取引がブロックとして積み上がります。<br>落ちモノパズルのように<strong>「固定費の壁」を越え、「限界利益」が利益へと変わる瞬間</strong>を指先で体感してください。<br>※ 用語が分からないときは、点線のテキストやブロックにカーソルを合わせると解説が表示されます！",
       graph_title: "売上高の内訳 (要素別分解)", col_rev: "売上高", col_cost_profit: "費用と利益", col_margin: "限界利益", col_bep: "損益分岐点",
-      btn_sell: "商品を1つ売る 🎯", current_sales: "現在販売数:", unit: "個", btn_reset: "最初から", btn_share: "結果をポストする",
+      btn_sell: "商品を1つ売る 🎯", current_sales: "現在販売数:", unit: "個", btn_reset: "最初から",
       setting_title: "パラメータ設定", cheat_btn: "数式と具体例 📖", price: "単価", vc: "変動費(1個)", fc: "固定費(全体)", target: "目標利益",
       kpi_title: "経営分析指標", kpi_cm: "限界利益(1個)", kpi_bep_rev: "損益分岐点売上", kpi_cmr: "限界利益率", kpi_bepr: "損益分岐点比率",
       kpi_vcr: "変動費率", kpi_fcr: "固定費率", kpi_cogsr: "原価率", kpi_mos: "安全余裕率",
@@ -330,9 +286,8 @@
     },
     en: {
       title: "Identify the Marginal Profit!", adv_title: "📊 Management Advice",
-      howto_title: "🎮 How to Play & Learn", howto_desc: "It's not just reading! Click 'Sell 1 Item' to stack transaction blocks.<br>Feel the moment when the <strong>'Fixed Cost Wall'</strong> is breached and <strong>'Contribution Margin'</strong> turns into Profit!<br>*Hover over dotted texts or blocks for definitions.",
       graph_title: "Sales Breakdown", col_rev: "Sales", col_cost_profit: "Cost & Profit", col_margin: "Margin", col_bep: "Break-Even",
-      btn_sell: "Sell 1 Item 🎯", current_sales: "Current Sales:", unit: "units", btn_reset: "Reset", btn_share: "Share Result",
+      btn_sell: "Sell 1 Item 🎯", current_sales: "Current Sales:", unit: "units", btn_reset: "Reset",
       setting_title: "Parameters", cheat_btn: "Formulas & Examples 📖", price: "Unit Price", vc: "Var.Cost", fc: "Fixed Cost", target: "Target Profit",
       kpi_title: "KPIs", kpi_cm: "Unit Cont.Margin", kpi_bep_rev: "Break-Even Sales", kpi_cmr: "CM Ratio", kpi_bepr: "BEP Ratio",
       kpi_vcr: "Var.Cost Ratio", kpi_fcr: "Fixed Cost Ratio", kpi_cogsr: "COGS Ratio", kpi_mos: "Margin of Safety",
@@ -349,8 +304,7 @@
     }
   };
 
-  let lang = 'ja';
-  let sales = 0;
+  let lang = 'ja'; let sales = 0;
   
   function toggleLang() {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -394,8 +348,7 @@
 
   function updateAll() {
     document.getElementById('disp-sales').innerText = sales.toLocaleString();
-    const currentUrl = window.location.href;
-
+    
     const price = parseFloat(document.getElementById('inp-price').value) || 0;
     const vc = parseFloat(document.getElementById('inp-vc').value) || 0;
     const fc = parseFloat(document.getElementById('inp-fc').value) || 0;
@@ -416,35 +369,26 @@
     const bepRatio = rev > 0 ? bepRev / rev : 0; 
     const mos = rev > 0 ? ((rev - bepRev) / rev) : 0; 
 
-    // --- AI経営アドバイス & Twitterシェア ---
+    // --- AI経営アドバイス ---
     const advList = document.getElementById('advice-list');
-    let advices = []; let tweetText = "";
-
+    let advices = [];
     if (cm <= 0) {
       advices.push(`<span style="color:#dc2626">致命的です！単価(${fmt(price)})より変動費(${fmt(vc)})が高いため、売れば売るほど赤字が拡大します。</span>`);
-      tweetText = lang === 'ja' ? `単価${fmt(price)}、変動費${fmt(vc)}のビジネスをシミュレーション中…売るほど赤字になる危険な状態です😱` : `Simulating Price ${fmt(price)} / VC ${fmt(vc)}. Losing money on every sale!😱`;
     } else {
       if (profit < 0) {
         const shortage = bepVol - sales;
         advices.push(`現在 ${hl("赤字")} です。黒字化（損益分岐点）まで、あと ${hl(shortage + " 個")} の販売が必要です。`);
-        tweetText = lang === 'ja' ? `単価${fmt(price)}、変動費${fmt(vc)}でシミュレーション中！損益分岐点まであと${shortage}個！` : `Simulating! Need ${shortage} more sales to Break-Even!`;
       } else if (profit >= 0 && profit < target) {
         const targetVol = Math.ceil((fc + target) / cm);
         const shortage = targetVol - sales;
         advices.push(`現在 ${hl("黒字ゾーン")} です！素晴らしい！`);
         advices.push(`目標利益（${fmt(target)}）達成には、あと ${hl(shortage + " 個")} 販売する必要があります。`);
-        tweetText = lang === 'ja' ? `損益分岐点を突破！ここからは限界利益(${fmt(cm)})がすべて利益になる無双状態です！` : `Breached the Break-Even Point! Contribution Margin is now pure profit!`;
       } else {
         advices.push(`🎉 目標利益（${fmt(target)}）を見事 ${hl("達成")} しました！経営は極めて順調です。`);
         advices.push(`安全余裕率が ${hl((mos * 100).toFixed(1) + "%")} あります。売上がこの割合だけ落ち込んでも赤字になりません。`);
-        tweetText = lang === 'ja' ? `目標利益達成！現在利益${fmt(profit)}！限界利益で稼ぐ感覚が最高に気持ちいい！` : `Profitable! Current profit: ${fmt(profit)}! Scaling with CM feels great!`;
       }
     }
     advList.innerHTML = advices.map(a => `<li>${a}</li>`).join('');
-
-    const hashtags = lang === 'ja' ? '損益分岐点,会計ゲーム,シミュレーター' : 'BreakEven,AccountingGame,Simulator';
-    const twUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText + '\n\n')}&url=${encodeURIComponent(currentUrl)}&hashtags=${hashtags}`;
-    document.getElementById('btn-tweet').href = twUrl;
 
     // --- KPI ---
     document.getElementById('kpi-cm').innerText = fmt(cm);
@@ -456,13 +400,13 @@
     document.getElementById('kpi-bepr').innerText = (profit < 0 && rev > 0) ? '>100%' : (rev===0 ? '-' : (bepRatio * 100).toFixed(1) + '%');
     document.getElementById('kpi-mos').innerText = profit < 0 ? '0%' : (mos * 100).toFixed(1) + '%';
 
-    // --- 要素別分解ブロック (パズルUI) ---
+    // --- 要素別分解ブロック (4カラムのパズル) ---
     const maxScale = Math.max(rev, totalCost);
     let displayBep = bepRev;
     if (bepRev === Infinity || bepRev > maxScale * 2.5) displayBep = maxScale * 2.5; 
     let blockMax = Math.max(maxScale, displayBep);
     if (blockMax === 0) blockMax = fc * 2 || 1000;
-    blockMax *= 1.05; // グラフ上部の余白
+    blockMax *= 1.05; 
 
     const getH = (val) => `${(Math.max(0, val) / blockMax) * 100}%`;
     const formatBlock = (title, val, pct, term) => {
