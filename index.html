@@ -11,8 +11,8 @@
 <meta property="og:type" content="website">
 <meta property="og:title" content="損益分岐点ゲーム - 動かして覚える会計">
 <meta property="og:description" content="落ちてくる取引を置くだけ。遊ぶうちに、会計が体に入るシミュレーター。">
-<!-- ⚠️↓↓ GitHub Pagesの実際の絶対URLに書き換えてください ↓↓⚠️ -->
-<meta property="og:image" content="https://YOUR-DOMAIN.github.io/ogp.png"> 
+<!-- GitHubにアップするだけで済むように画像ファイル名を指定 -->
+<meta property="og:image" content="ogp.png"> 
 <meta name="twitter:card" content="summary_large_image">
 
 <!-- === Google Analytics === -->
@@ -400,7 +400,6 @@
   function updateAll() {
     document.getElementById('disp-sales').innerText = sales.toLocaleString();
     
-    // --- 常に現在のURLを取得 ---
     const currentUrl = window.location.href;
 
     const price = parseFloat(document.getElementById('inp-price').value) || 0;
@@ -423,7 +422,7 @@
     const bepRatio = rev > 0 ? bepRev / rev : 0; 
     const mos = rev > 0 ? ((rev - bepRev) / rev) : 0; 
 
-    // --- AI経営アドバイス & Twitterシェア文面生成 ---
+    // --- AI経営アドバイス & Twitterシェア ---
     const advList = document.getElementById('advice-list');
     let advices = [];
     let tweetText = "";
@@ -462,12 +461,11 @@
     }
     advList.innerHTML = advices.map(a => `<li>${a}</li>`).join('');
 
-    // Twitter リンク更新
     const hashtags = lang === 'ja' ? '損益分岐点,会計ゲーム,シミュレーター' : 'BreakEven,AccountingGame,Simulator';
     const twUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText + '\n\n')}&url=${encodeURIComponent(currentUrl)}&hashtags=${hashtags}`;
     document.getElementById('btn-tweet').href = twUrl;
 
-    // --- KPI更新 ---
+    // --- KPI ---
     document.getElementById('kpi-cm').innerText = fmt(cm);
     document.getElementById('kpi-bep-rev').innerText = bepRev === Infinity ? '-' : fmt(bepRev);
     document.getElementById('kpi-cmr').innerText = (cmr * 100).toFixed(1) + '%';
@@ -477,7 +475,7 @@
     document.getElementById('kpi-bepr').innerText = (profit < 0 && rev > 0) ? '>100%' : (rev===0 ? '-' : (bepRatio * 100).toFixed(1) + '%');
     document.getElementById('kpi-mos').innerText = profit < 0 ? '0%' : (mos * 100).toFixed(1) + '%';
 
-    // --- P/L更新 ---
+    // --- P/L ---
     document.getElementById('pl-rev1').innerText = fmt(rev);
     document.getElementById('pl-cogs').innerText = fmt(totalVc);
     document.getElementById('pl-gp').innerText = fmt(rev - totalVc); 
@@ -490,7 +488,7 @@
     document.getElementById('pl-fix').innerText = fmt(fc);
     document.getElementById('pl-op2').innerText = fmt(profit);
 
-    // --- ブロック(地図)更新 ---
+    // --- ブロック ---
     const bFixed = document.getElementById('b-fixed'); const bVar = document.getElementById('b-var');
     const bProfit = document.getElementById('b-profit'); const bLoss = document.getElementById('b-loss'); const bRev = document.getElementById('b-rev');
     const maxSales = Math.max(sales, bepVol * 1.5, 10);
@@ -503,31 +501,36 @@
     bRev.style.flexBasis = `${getPct(rev)}%`; bRev.innerHTML = rev > 0 ? `売上\n${fmt(rev)}<span class="tooltip-text">${glossary[lang].revenue}</span>` : `<span class="tooltip-text">${glossary[lang].revenue}</span>`;
     bLoss.style.flexBasis = `${getPct(Math.max(0, -profit))}%`; bLoss.innerHTML = profit < 0 ? `赤字\n${fmt(Math.abs(profit))}<span class="tooltip-text">${glossary[lang].loss}</span>` : `<span class="tooltip-text">${glossary[lang].loss}</span>`;
 
-    // --- Chart.js 更新 ---
+    // --- Chart.js 更新 (固定費の線を追加) ---
     const chartMaxX = cm > 0 ? Math.ceil(Math.max(sales, bepVol, ((fc+target)/cm)) * 1.2) : Math.max(sales * 2, 10);
     const step = Math.ceil(chartMaxX / 20) || 1; 
     
-    const labels = [], revData = [], costData = [], currentPoint = [];
+    const labels = [], revData = [], costData = [], fixedData = [], currentPoint = [];
     let closestIdx = 0; let minDiff = Infinity;
+    
     for (let i = 0; i <= chartMaxX; i += step) {
       labels.push(i);
       revData.push(price * i);
       costData.push(fc + (vc * i));
+      fixedData.push(fc); // 固定費のデータポイントを追加
       let diff = Math.abs(i - sales);
       if (diff < minDiff) { minDiff = diff; closestIdx = labels.length - 1; }
     }
+    
     for (let i = 0; i < labels.length; i++) {
       currentPoint.push(i === closestIdx ? price * sales : null);
     }
 
     const l_rev = lang === 'ja' ? '売上' : 'Sales';
     const l_cost = lang === 'ja' ? '総費用' : 'Total Cost';
+    const l_fixed = lang === 'ja' ? '固定費' : 'Fixed Cost';
     const l_cur = lang === 'ja' ? '現在地' : 'Current';
 
     chartInstance.data.labels = labels;
     chartInstance.data.datasets = [
       { label: l_rev, data: revData, borderColor: '#4ade80', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
       { label: l_cost, data: costData, borderColor: '#f87171', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
+      { label: l_fixed, data: fixedData, borderColor: '#eab308', backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 5], pointRadius: 0 }, // 追加: 黄色の点線
       { label: l_cur, data: currentPoint, pointBackgroundColor: '#3b82f6', pointRadius: 8, showLine: false }
     ];
     chartInstance.update();
