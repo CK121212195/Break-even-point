@@ -63,8 +63,8 @@
   .stage-grid { display: grid; grid-template-columns: 320px 1fr; gap: 24px; margin-bottom: 32px; }
   @media (max-width: 800px) { .stage-grid { grid-template-columns: 1fr; } }
   
-  .map-container { position: relative; background: var(--bg); border: 2px solid var(--border-strong); border-radius: var(--r-md); padding: 12px; height: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: flex-end; box-shadow: 0 8px 16px rgba(0,0,0,0.05);}
-  .map-col { display: flex; flex-direction: column-reverse; gap: 3px; width: 100%; height: 100%; }
+  .map-container { position: relative; background: var(--bg); border: 2px solid var(--border-strong); border-radius: var(--r-md); padding: 12px; height: 400px; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: flex-end; box-shadow: 0 8px 16px rgba(0,0,0,0.05); overflow: hidden; }
+  .map-col { display: flex; flex-direction: column-reverse; gap: 3px; width: 100%; height: 100%; transform-origin: bottom; }
   .block { width: 100%; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 0.9rem; color: rgba(0,0,0,0.85); box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), inset 0 -2px 0 rgba(0,0,0,0.08); transition: flex-basis 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); flex-basis: 0%; overflow: visible; white-space: pre-wrap; text-align: center; line-height: 1.3; position: relative; }
   .bg-fixed { background: var(--c-fixed); } .bg-var { background: var(--c-var); } .bg-rev { background: var(--c-rev); } .bg-profit { background: var(--c-profit); } .bg-loss { background: var(--c-loss); border: 1px dashed #999; box-shadow: none; color: var(--text-secondary);}
   
@@ -72,17 +72,24 @@
   
   /* 🧩 パズル落下エフェクト */
   .falling-block {
-    position: absolute; width: calc(50% - 16px); height: 48px; border-radius: 4px;
+    position: absolute; width: calc(50% - 16px); height: 48px; border-radius: 6px;
     display: flex; align-items: center; justify-content: center;
-    font-weight: 700; font-size: 0.9rem; color: rgba(0,0,0,0.85);
+    font-weight: 700; font-size: 0.95rem; color: rgba(0,0,0,0.85);
     box-shadow: inset 0 1px 0 rgba(255,255,255,0.4), 0 8px 16px rgba(0,0,0,0.15);
-    animation: dropIn 0.5s ease-in forwards; z-index: 20; pointer-events: none;
+    z-index: 20; pointer-events: none;
   }
-  @keyframes dropIn {
-    0% { top: -80px; opacity: 0; transform: scale(0.8); }
-    15% { opacity: 1; transform: scale(1); }
-    70% { top: 50%; opacity: 1; transform: scale(1); }
-    100% { top: 70%; opacity: 0; transform: scale(1.2); }
+
+  /* ぷよぷよ風の着地バウンス（モチッと縦につぶれる） */
+  .squash-bounce {
+    animation: squashBounce 0.4s ease-out;
+    transform-origin: bottom;
+  }
+  @keyframes squashBounce {
+    0% { transform: scaleY(1) scaleX(1); }
+    30% { transform: scaleY(0.82) scaleX(1.1); }
+    60% { transform: scaleY(1.06) scaleX(0.96); }
+    80% { transform: scaleY(0.98) scaleX(1.01); }
+    100% { transform: scaleY(1) scaleX(1); }
   }
 
   /* アクションボタン */
@@ -153,7 +160,7 @@
   <div class="how-to-play">
     <h2 data-i18n="howto_title">🎮 遊び方 ＆ 学べること</h2>
     <p data-i18n="howto_desc">
-      読むだけの教材やフラッシュカードではありません。下の「商品を売る」ボタンを押すと、上から取引ブロックが落ちてきて積み上がります。<br>
+      読むだけの教材やフラッシュカードではありません。下の「商品を売る」ボタンを押すと、上から取引ブロックが降ってきます。<br>
       落ちモノパズルのように<strong>「固定費の壁」を越え、「限界利益」が利益へと変わる瞬間</strong>を指先で体感してください。<br>
       ※ 用語が分からないときは、点線のテキストやブロックにカーソルを合わせると解説が表示されます！
     </p>
@@ -373,6 +380,7 @@
 
   let lang = 'ja';
   let sales = 0;
+  let virtualSales = 0; // 連続落下用の仮想販売数
   
   function toggleLang() {
     lang = lang === 'ja' ? 'en' : 'ja';
@@ -408,53 +416,134 @@
     });
   }
 
-  // 🧩 パズル落下演出
-  function spawnFallingBlocks() {
+  // 🧩 パズルの着地高さを動的に計算するヘルパー
+  function getStackHeightPxForVal(salesVal) {
+    const price = parseFloat(document.getElementById('inp-price').value) || 0;
+    const vc = parseFloat(document.getElementById('inp-vc').value) || 0;
+    const fc = parseFloat(document.getElementById('inp-fc').value) || 0;
+    
+    const cm = price - vc;
+    const bepVol = cm > 0 ? Math.ceil(fc / cm) : Infinity;
+    const maxSales = Math.max(salesVal, bepVol * 1.5, 10);
+    const blockMax = Math.max(fc + (vc * maxSales), price * maxSales);
+    
+    const rev = price * salesVal;
+    const totalVc = vc * salesVal;
+    const totalCost = fc + totalVc;
+    
+    const currentVal = Math.max(rev, totalCost);
+    const pct = currentVal / blockMax;
+    
+    const container = document.getElementById('puzzle-container');
+    const containerHeight = container.clientHeight - 24; // 12px padding top/bottom
+    
+    return containerHeight * pct;
+  }
+
+  // 🧩 ぷよぷよ風に落下してスタックに着地する演出
+  function spawnFallingBlocks(targetSalesValue, incrementAmount) {
     const container = document.getElementById('puzzle-container');
     const txtVc = lang === 'ja' ? '変動費' : 'Var.Cost';
     const txtRev = lang === 'ja' ? '売上' : 'Sales';
     
-    // 左(費用側)ブロック
+    // 正確な着地高さをピクセル単位でリアルタイム計算
+    const startHeightPx = getStackHeightPxForVal(targetSalesValue);
+    const containerHeight = container.clientHeight - 24;
+    const targetTop = Math.max(0, containerHeight - startHeightPx - 48); // 48pxは落下ブロックの高さ
+
+    // 左(費用側)ブロック生成
     const blockL = document.createElement('div');
     blockL.className = 'falling-block bg-var';
     blockL.innerText = txtVc;
     blockL.style.left = '12px';
+    blockL.style.top = '-80px';
     
-    // 右(収益側)ブロック
+    // 右(収益側)ブロック生成
     const blockR = document.createElement('div');
     blockR.className = 'falling-block bg-rev';
     blockR.innerText = txtRev;
     blockR.style.right = '12px';
+    blockR.style.top = '-80px';
     
     container.appendChild(blockL);
     container.appendChild(blockR);
     
-    // アニメーション完了後に削除
+    // イージングを効かせたスムーズな落下
     setTimeout(() => {
-      if(blockL.parentNode) blockL.remove();
-      if(blockR.parentNode) blockR.remove();
-    }, 550);
+      blockL.style.transition = 'top 0.35s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
+      blockR.style.transition = 'top 0.35s cubic-bezier(0.55, 0.085, 0.68, 0.53)';
+      blockL.style.top = targetTop + 'px';
+      blockR.style.top = targetTop + 'px';
+    }, 10);
+    
+    // 着地（インパクト）
+    setTimeout(() => {
+      blockL.remove();
+      blockR.remove();
+      
+      // 数値更新と表示の再計算
+      sales += incrementAmount;
+      updateAll();
+      
+      // もちぷよ着地バウンスを列全体に適用
+      const cols = document.querySelectorAll('.map-col');
+      cols.forEach(col => {
+        col.classList.add('squash-bounce');
+        setTimeout(() => col.classList.remove('squash-bounce'), 410);
+      });
+    }, 360);
+  }
+
+  // 🧩 販売数増加のステップを自然に分散させる（仮想高さ計算を含む）
+  function triggerSalesIncrease(totalAmount) {
+    let steps = totalAmount;
+    let incrementPerStep = 1;
+    
+    // 大量に追加する時はブラウザの負荷を避けるためステップをまとめる
+    if (totalAmount >= 10) {
+      steps = 5;
+      incrementPerStep = 2;
+    }
+    
+    for (let i = 0; i < steps; i++) {
+      const targetVal = virtualSales;
+      virtualSales += incrementPerStep; // 仮想高さを即座に加算
+      
+      setTimeout(() => {
+        spawnFallingBlocks(targetVal, incrementPerStep);
+      }, i * 120); // 120ms間隔でダダダッと降らせる
+    }
   }
 
   function changeSales(amount) { 
     if (amount > 0) {
-      // 10個売る時は3回連続で落とす (視覚的な気持ちよさ)
-      const spawns = amount >= 10 ? 3 : 1; 
-      for (let i = 0; i < spawns; i++) {
-        setTimeout(spawnFallingBlocks, i * 120);
-      }
+      triggerSalesIncrease(amount);
+    } else {
+      sales = Math.max(0, sales + amount); 
+      virtualSales = sales; // 仮想高さを同期
+      updateAll(); 
     }
-    sales = Math.max(0, sales + amount); 
-    updateAll(); 
   }
 
-  function resetSales() { sales = 0; updateAll(); }
+  function resetSales() { sales = 0; virtualSales = 0; updateAll(); }
 
   const fmt = (num) => `¥${Math.round(num).toLocaleString()}`;
   const hl = (txt) => `<span class="val-hl">${txt}</span>`;
 
   function updateAll() {
+    // 画面の手入力と同期
+    const manualSales = parseFloat(document.getElementById('inp-sales').value) || 0;
+    if (sales !== manualSales) {
+      sales = manualSales;
+    }
+    virtualSales = sales; // 手入力時も高さを常に同期
+    
     document.getElementById('disp-sales').innerText = sales.toLocaleString();
+    
+    // 手入力エリアのアクティブが外れていたら値を同期
+    if (document.activeElement !== document.getElementById('inp-sales')) {
+      document.getElementById('inp-sales').value = sales;
+    }
     
     const currentUrl = window.location.href;
 
@@ -478,7 +567,7 @@
     const bepRatio = rev > 0 ? bepRev / rev : 0; 
     const mos = rev > 0 ? ((rev - bepRev) / rev) : 0; 
 
-    // --- AI経営アドバイス & Twitterシェア ---
+    // --- AI経営アドバイス & Twitterシェア文面生成 ---
     const advList = document.getElementById('advice-list');
     let advices = [];
     let tweetText = "";
@@ -557,7 +646,7 @@
     bRev.style.flexBasis = `${getPct(rev)}%`; bRev.innerHTML = rev > 0 ? `売上\n${fmt(rev)}<span class="tooltip-text">${glossary[lang].revenue}</span>` : `<span class="tooltip-text">${glossary[lang].revenue}</span>`;
     bLoss.style.flexBasis = `${getPct(Math.max(0, -profit))}%`; bLoss.innerHTML = profit < 0 ? `赤字\n${fmt(Math.abs(profit))}<span class="tooltip-text">${glossary[lang].loss}</span>` : `<span class="tooltip-text">${glossary[lang].loss}</span>`;
 
-    // --- Chart.js ---
+    // --- Chart.js 更新 (固定費：黄色の点線を追加) ---
     const chartMaxX = cm > 0 ? Math.ceil(Math.max(sales, bepVol, ((fc+target)/cm)) * 1.2) : Math.max(sales * 2, 10);
     const step = Math.ceil(chartMaxX / 20) || 1; 
     
@@ -568,7 +657,7 @@
       labels.push(i);
       revData.push(price * i);
       costData.push(fc + (vc * i));
-      fixedData.push(fc); // 固定費の点線
+      fixedData.push(fc); // 固定費
       let diff = Math.abs(i - sales);
       if (diff < minDiff) { minDiff = diff; closestIdx = labels.length - 1; }
     }
@@ -586,7 +675,7 @@
     chartInstance.data.datasets = [
       { label: l_rev, data: revData, borderColor: '#4ade80', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
       { label: l_cost, data: costData, borderColor: '#f87171', backgroundColor: 'transparent', borderWidth: 3, pointRadius: 0 },
-      { label: l_fixed, data: fixedData, borderColor: '#eab308', backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 5], pointRadius: 0 },
+      { label: l_fixed, data: fixedData, borderColor: '#eab308', backgroundColor: 'transparent', borderWidth: 2, borderDash: [5, 5], pointRadius: 0 }, // 追加: 黄色の点線
       { label: l_cur, data: currentPoint, pointBackgroundColor: '#3b82f6', pointRadius: 8, showLine: false }
     ];
     chartInstance.update();
